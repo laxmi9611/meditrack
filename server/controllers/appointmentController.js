@@ -138,10 +138,16 @@ exports.getAppointmentById = async (req, res) => {
     const isAdmin = req.user.role === "admin";
 
     if (!isPatient && !isDoctor && !isAdmin) {
-      return res.status(403).json({ message: "Not authorized" });
-    }
+  return res.status(403).json({ message: "Not authorized" });
+}
 
-    res.json(appointment);
+// Ensure prescription is a plain ID string, not an object
+const appointmentData = appointment.toObject();
+if (appointmentData.prescription && typeof appointmentData.prescription === "object") {
+  appointmentData.prescription = appointmentData.prescription._id;
+}
+
+res.json(appointmentData);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -187,7 +193,8 @@ exports.updateStatus = async (req, res) => {
     sendEmail({ to: appointment.patient.email, ...template });
 
     res.json(appointment);
-  } catch (err) {
+  } 
+  catch (err) {
     res.status(500).json({ message: err.message });
   }
 };

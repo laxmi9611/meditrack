@@ -73,7 +73,12 @@ exports.createPrescription = async (req, res) => {
     );
     sendEmail({ to: appointment.patient.email, ...template });
 
-    res.status(201).json(prescription);
+    // Return populated prescription
+    const populatedPrescription = await Prescription.findById(prescription._id)
+      .populate("patient", "name email")
+      .populate("doctor", "name email");
+
+    res.status(201).json(populatedPrescription);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -110,7 +115,7 @@ exports.getByAppointment = async (req, res) => {
   }
 };
 
-// @desc   Get my prescriptions (patient)
+// @desc   Get my prescriptions
 // @route  GET /api/prescriptions/my
 exports.getMyPrescriptions = async (req, res) => {
   try {
@@ -125,6 +130,35 @@ exports.getMyPrescriptions = async (req, res) => {
       .sort({ createdAt: -1 });
 
     res.json(prescriptions);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// @desc   Get prescription by ID
+// @route  GET /api/prescriptions/:id
+exports.getPrescriptionById = async (req, res) => {
+  try {
+    const prescription = await Prescription.findById(req.params.id)
+      .populate("patient", "name email avatar")
+      .populate("doctor", "name email avatar")
+      .populate("appointment");
+
+    if (!prescription) {
+      return res.status(404).json({ message: "Prescription not found" });
+    }
+
+    const isPatient =
+      prescription.patient._id.toString() === req.user._id.toString();
+    const isDoctor =
+      prescription.doctor._id.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === "admin";
+
+    if (!isPatient && !isDoctor && !isAdmin) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+
+    res.json(prescription);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
